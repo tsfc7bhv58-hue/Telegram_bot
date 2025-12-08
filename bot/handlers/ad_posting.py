@@ -2,8 +2,9 @@
 from telegram.ext import CommandHandler, MessageHandler, filters, ContextTypes
 from telegram import Update
 from bot.utils import check_and_handle_ban, ensure_vip_status, get_daily_post_count, notify_moderators_about_new_post
-from bot.validators import is_spam_content
+from bot.validators import is_spam_content, is_valid_email
 from database import db
+
 
 from .broadcast import handle_broadcast_message
 from .moderation import handle_reject_reason
@@ -19,6 +20,7 @@ async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_any_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
+    username = update.effective_user.username or "unknown"
     text = update.message.text.strip()
 
     #Обработка email
@@ -28,12 +30,16 @@ async def handle_any_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data['awaiting_phone'] = True
             context.user_data.pop('awaiting_email', None)
         else:
+            if not is_valid_email(text):
+                await update.message.reply_text("📧 Неверный формат email. Попробуйте снова или напишите «-», чтобы указать телефон.")
+                return
             db.execute_query("UPDATE users SET email = %s WHERE user_id = %s", (text, user_id))
             await update.message.reply_text("✅ Email сохранён.")
             days = context.user_data.get('vip_days', 7)
             price = context.user_data.get('vip_price', 49)
             desc = context.user_data.get('vip_desc', f"VIP на {days} дней")
-            await create_yookassa_payment(update, context, user_id, days, price, desc)
+            print(f"🔍 DEBUG: Вызываю create_yookassa_payment для user_id={user_id}, days={days}, price={price}")
+            await create_yookassa_payment(update, context, user_id, days, price)
             for key in ['awaiting_email', 'vip_days', 'vip_price', 'vip_desc']:
                 context.user_data.pop(key, None)
         return
@@ -48,7 +54,7 @@ async def handle_any_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         days = context.user_data.get('vip_days', 7)
         price = context.user_data.get('vip_price', 49)
         desc = context.user_data.get('vip_desc', f"VIP на {days} дней")
-        await create_yookassa_payment(update, context, user_id, days, price, desc)
+        await create_yookassa_payment(update, context, user_id, days, price)
         for key in ['awaiting_phone', 'vip_days', 'vip_price', 'vip_desc']:
             context.user_data.pop(key, None)
         return

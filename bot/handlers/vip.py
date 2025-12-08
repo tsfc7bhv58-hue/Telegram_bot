@@ -9,8 +9,37 @@ from config import YOO_KASSA_SHOP_ID, YOO_KASSA_SECRET_KEY
 from bot.utils import ensure_vip_status
 from payments.yookassa import create_payment
 
-async def create_yookassa_payment(update, context, user_id: int, days: int, price: int, desc: str = None):
-    #Получение контакты
+async def create_yookassa_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int, days: int, price: str):
+    # === ПРОВЕРКА ТАЙМЕРА ===
+    last_payment = db.fetch_all("""
+        SELECT created_at, status 
+        FROM vip_payments 
+        WHERE user_id = %s 
+        ORDER BY created_at DESC LIMIT 1
+    """, (user_id,))
+    if last_payment:
+        last_created = last_payment[0]['created_at']
+        last_status = last_payment[0]['status']
+        if last_status in ('pending', 'waiting_for_capture'):
+            cooldown_expires = last_created + timedelta(minutes=PAYMENT_COOLDOWN_MINUTES)
+            now = datetime.datetime.now()
+            if now < cooldown_expires:
+                remaining_minutes = int((cooldown_expires - now).total_seconds() // 60)
+                await update.effective_message.reply_text(
+                    f"⏳ Пожалуйста, подождите {remaining_minutes} минут(ы) перед созданием нового платежа."
+                )
+                return
+
+    # === ОПРЕДЕЛЕНИЕ ОПИСАНИЯ ===
+    if days == 7:
+        desc = "VIP на 7 дней"
+    elif days == 14:
+        desc = "VIP на 14 дней"
+    elif days == 30:
+        desc = "VIP на 30 дней"
+    else:
+        desc = f"VIP на {days} дней"
+
     user = db.fetch_all("SELECT email, phone FROM users WHERE user_id = %s", (user_id,))
     customer = {}
     if user and user[0]['email']:
@@ -21,37 +50,59 @@ async def create_yookassa_payment(update, context, user_id: int, days: int, pric
         await update.effective_message.reply_text("❌ Не удалось получить контакт для чека.")
         return
 
-    if not desc:
-        desc = f"VIP на {days} дней"
+    payload = {
+        "amount": {"value": price, "currency": "RUB"},  # ← price уже "49.00"
+        "confirmation": {"type": "redirect", "return_url": f"https://t.me/{context.bot.username}"},
+        "capture": True,
+        "description": desc,
+        "metadata": {"user_id": str(user_id), "days": str(days)},
+        "receipt": {
+            "customer": customer,
+            "items": [
+                {
+                    "description": desc,
+                    "amount": {"value": price, "currency": "RUB"},
+                    "quantity": 1,
+                    "vat_code": 1,
+                    "payment_subject": "service",
+                    "payment_mode": "full_payment"
+                }
+            ]
+        }
+    }
 
-    return_url = f"https://t.me/{context.bot.username}"
-    metadata = {"user_id": str(user_id), "days": str(days)}
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.yookassa.ru/v3/payments",  # ← без пробелов!
+                json=payload,
+                auth=(YOO_KASSA_SHOP_ID, YOO_KASSA_SECRET_KEY),
+                headers={"Idempotence-Key": f"vip_{user_id}_{int(datetime.datetime.now().timestamp())}"}
+            )
+            data = response.json()
+            if response.status_code == 200:
+                confirmation_url = data["confirmation"]["confirmation_url"]
+                real_payment_id = data["id"]
+                db.execute_query("""
+                    INSERT INTO vip_payments (user_id, days, amount_rub, payment_id, status, created_at)
+                    VALUES (%s, %s, %s, %s, 'pending', NOW())
+                """, (user_id, days, price, real_payment_id))
 
-    result, status_code = await create_payment(
-        amount=f"{price}.00",
-        description=desc,
-        customer=customer,
-        return_url=return_url,
-        metadata=metadata
-    )
-
-    if status_code == 200:
-        confirmation_url = result["confirmation"]["confirmation_url"]
-        real_payment_id = result["id"]
-        db.execute_query("""
-            INSERT INTO vip_payments (user_id, days, amount_rub, payment_id, status, created_at)
-            VALUES (%s, %s, %s, %s, 'pending', NOW())
-        """, (user_id, days, price, real_payment_id))
-
-        from telegram import InlineKeyboardMarkup, InlineKeyboardButton
-        keyboard = [[InlineKeyboardButton("💳 Оплатить", url=confirmation_url)]]
-        await update.effective_message.reply_text(
-            f"💎 {desc}\nЦена: {price}₽\nПерейдите к оплате:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-    else:
-        await update.effective_message.reply_text("❌ Не удалось создать платёж. Попробуйте позже.")
-
+                keyboard = [[InlineKeyboardButton("💳 Оплатить", url=confirmation_url)]]
+                await update.effective_message.reply_text(
+                    f"💎 {desc}\n"
+                    f"Цена: {price} ₽\n"
+                    "После оплаты напишите /check_payment для активации VIP.\n"
+                    "Перейдите к оплате:",
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+            else:
+                print(f"❌ ЮKassa error: {response.status_code} - {data}")
+                await update.effective_message.reply_text("❌ Не удалось создать платёж. Проверьте настройки.")
+    except Exception as e:
+        print(f"❌ Exception in create_yookassa_payment: {e}")
+        await update.effective_message.reply_text("❌ Ошибка при создании платежа. Попробуйте позже.")
+        
 async def buy_vip_stub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user = db.fetch_all("SELECT is_vip, vip_expires_at FROM users WHERE user_id = %s", (user_id,))

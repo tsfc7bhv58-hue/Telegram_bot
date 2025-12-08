@@ -9,10 +9,48 @@ from .moderation import list_pending
 from .broadcast import broadcast_start
 from database import db
 from config import SERVERS, SERVER_INVITE_LINKS, MODERATOR_IDS
+import datetime
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print("🔍 Функция start вызвана!")
     user_id = update.effective_user.id
+    username = update.effective_user.username or "unknown"
+
+    if context.args and context.args[0].startswith("ref"):
+        try:
+            referrer_id = int(context.args[0][3:])
+            if referrer_id != user_id:
+                existing = db.fetch_all("SELECT 1 FROM users WHERE user_id = %s", (user_id,))
+                if not existing:
+                    db.execute_query(
+                        "INSERT INTO users (user_id, username, referred_by) VALUES (%s, %s, %s) "
+                        "ON DUPLICATE KEY UPDATE username = VALUES(username)",
+                        (user_id, username, referrer_id)
+                    )
+                    db.execute_query(
+                        "UPDATE users SET referral_count = referral_count + 1 WHERE user_id = %s",
+                        (referrer_id,)
+                    )
+                    ref_info = db.fetch_all(
+                        "SELECT referral_count FROM users WHERE user_id = %s", (referrer_id,)
+                    )
+                    if ref_info and ref_info[0]['referral_count'] <= 3:
+                        expires = datetime.datetime.now() + datetime.timedelta(days=3)
+                        db.execute_query(
+                            "UPDATE users SET is_vip = TRUE, vip_expires_at = %s WHERE user_id = %s",
+                            (expires, referrer_id)
+                        )
+                        try:
+                            await context.bot.send_message(
+                                chat_id=referrer_id,
+                                text="🎉 Вы пригласили ещё одного пользователя! "
+                                     "Вам начислен VIP-статус на 3 дня."
+                            )
+                        except:
+                            pass
+        except (ValueError, IndexError):
+            pass
+
     if context.user_data.get('server_changed'):
         is_new_message = True
         selected_server_id = context.user_data.get('last_selected_server_id')
@@ -26,7 +64,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         link_text = ""
 
     user = db.fetch_all("SELECT server_id FROM users WHERE user_id = %s", (user_id,))
-    if not user or user[0]['server_id'] is None:
+    if not user:
+        db.execute_query(
+            "INSERT INTO users (user_id, username) VALUES (%s, %s) "
+            "ON DUPLICATE KEY UPDATE username = VALUES(username)",
+            (user_id, username)
+        )
         await select_server(update, context)
         return
 
@@ -106,6 +149,36 @@ async def handle_server_selection(update: Update, context: ContextTypes.DEFAULT_
     await start(update, context)
     context.user_data.pop('server_changed', None)
     context.user_data.pop('last_selected_server_id', None)
+
+async def referral_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    user = db.fetch_all(
+        "SELECT referral_count, is_vip, vip_expires_at FROM users WHERE user_id = %s",
+        (user_id,)
+    )
+    if not user:
+        await update.message.reply_text("Вы ещё не зарегистрированы. Напишите /start.")
+        return
+
+    count = user[0]['referral_count']
+    is_vip = user[0]['is_vip']
+    expires_at = user[0]['vip_expires_at']
+
+    # Генерируем реф-ссылку
+    bot_username = context.bot.username
+    ref_link = f"https://t.me/{bot_username}?start=ref{user_id}"
+
+    text = (
+        f"👤 Ваши приглашения: {count} из 3\n"
+        f"🔗 Ваша реферальная ссылка:\n<code>{ref_link}</code>\n\n"
+    )
+
+    if count < 3:
+        text += f"🎁 Пригласите ещё {3 - count} друзей — получите VIP на 3 дня!"
+    else:
+        text += "🥇 Лимит приглашений достигнут. Спасибо!"
+
+    await update.effective_message.reply_text(text, parse_mode="HTML")
 
 #Хендлеры
 start_handler = CommandHandler("start", start)

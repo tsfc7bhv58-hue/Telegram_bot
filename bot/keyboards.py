@@ -6,7 +6,8 @@ def get_start_keyboard(user_id: int, is_moderator: bool = False) -> InlineKeyboa
     keyboard = [
         [InlineKeyboardButton("📢 Выставить объявление", callback_data="cmd_add")],
         [InlineKeyboardButton("💎 Купить VIP", callback_data="cmd_buy_vip")],
-        [InlineKeyboardButton("🔄 Сменить сервер", callback_data="cmd_change_server")]
+        [InlineKeyboardButton("🔄 Сменить сервер", callback_data="cmd_change_server")],
+        [InlineKeyboardButton("🎁 Реферальная программа", callback_data="cmd_ref")]
     ]
     if is_moderator:
         keyboard.append([InlineKeyboardButton("🛡️ Модерация", callback_data="cmd_moderate")])

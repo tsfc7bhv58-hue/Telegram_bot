@@ -1,13 +1,13 @@
 #bot/handlers/__init__.py
-from telegram.ext import Application, CallbackQueryHandler
-from .start import start_handler, server_selection_handler, select_server
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+from .start import start_handler, server_selection_handler, select_server, referral_status
 from .ad_posting import add_handler, text_handler, photo_handler, add_command
 from .vip import buy_vip_handler, vip_plan_handler, check_payment_handler, buy_vip_stub
 from .moderation import moderate_handler, approve_handler, reject_handler, reject_reason_handler, list_pending
 from .broadcast import broadcast_start_handler, broadcast_message_handler, broadcast_start
 from .ban import ban_start_handler, ban_input_handler, unban_start_handler, unban_input_handler
 from .fallback import unsupported_media_handler
-from .buttons import button_callback_handler  # ← новая строка
+from .buttons import button_callback_handler
 
 def register_all_handlers(app: Application):
     # Команды
@@ -19,6 +19,7 @@ def register_all_handlers(app: Application):
     app.add_handler(ban_start_handler)
     app.add_handler(unban_start_handler)
     app.add_handler(broadcast_start_handler)
+    app.add_handler(CommandHandler("ref", referral_status))
 
     # Callback-кнопки
     app.add_handler(server_selection_handler)

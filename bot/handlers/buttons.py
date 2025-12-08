@@ -6,7 +6,7 @@ from .ad_posting import add_command
 from .vip import buy_vip_stub
 from .moderation import list_pending
 from .broadcast import broadcast_start
-from .start import select_server
+from .start import select_server, referral_status
 
 async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -28,3 +28,7 @@ async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_
             await broadcast_start(update, context)
         else:
             await query.message.reply_text("❌ У вас нет доступа к рассылке.")
+    elif data == "cmd_ref":
+        await referral_status(update, context)
+    else:
+        return

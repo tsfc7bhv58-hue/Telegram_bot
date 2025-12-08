@@ -1,6 +1,14 @@
 # bot/validators.py
 import re
 
+def is_valid_email(email: str) -> bool:
+    """
+    Проверяет, соответствует ли строка формату email.
+    Не гарантирует существование ящика, но отсеивает заведомо неправильные значения.
+    """
+    pattern = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+    return re.match(pattern, email) is not None
+
 def is_spam_content(text: str) -> tuple[bool, str]:
     text = text.strip()
     if not text:
