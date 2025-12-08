@@ -1,6 +1,12 @@
+#bot/handlers/buttons.py
 from telegram import Update
 from telegram.ext import ContextTypes
-from config.settings import BOT_TOKEN, CHANNEL_ID, SERVERS, SERVER_CHANNELS, SERVER_INVITE_LINKS, MODERATOR_IDS, YOO_KASSA_SHOP_ID, YOO_KASSA_SECRET_KEY, YOO_KASSA_WEBHOOK_URL, DB_CONFIG
+from config import MODERATOR_IDS
+from .ad_posting import add_command
+from .vip import buy_vip_stub
+from .moderation import list_pending
+from .broadcast import broadcast_start
+from .start import select_server
 
 async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -17,5 +23,8 @@ async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_
         await select_server(update, context)
     elif data == "cmd_moderate":
         await list_pending(update, context)
-    else:
-            return
+    elif data == "cmd_broadcast":
+        if user_id in MODERATOR_IDS:
+            await broadcast_start(update, context)
+        else:
+            await query.message.reply_text("❌ У вас нет доступа к рассылке.")

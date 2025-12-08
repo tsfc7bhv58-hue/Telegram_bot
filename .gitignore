@@ -1,25 +1,9 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Virtual environments
-venv/
-env/
-.venv/
-
-# Logs
-*.log
-*.log.*
-
-# Database
-*.db
-*.sqlite3
-
-# Config files with secrets
-config/settings.py
-!config/settings_example.py
-
-# OS
-.DS_Store
-Thumbs.db
+config.py
+bot.log
+/venv
+/logs
+/payments/__pycache__
+/bot/__pycache__
+/bot/handlers/__pycache__
+__pycache__
+requirements.txt
