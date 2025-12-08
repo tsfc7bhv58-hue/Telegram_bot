@@ -9,7 +9,6 @@ async def create_payment(
     return_url: str,
     metadata: dict
 ) -> tuple[dict, int]:
-    # Нормализуем сумму к формату X.XX
     amount_value = "{:.2f}".format(float(amount))
     payload = {
         "amount": {"value": amount_value, "currency": "RUB"},
@@ -33,7 +32,7 @@ async def create_payment(
     }
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            "https://api.yookassa.ru/v3/payments",  # ← УБРАТЬ ПРОБЕЛЫ!
+            "https://api.yookassa.ru/v3/payments",
             json=payload,
             auth=(YOO_KASSA_SHOP_ID, YOO_KASSA_SECRET_KEY),
             headers={"Idempotence-Key": f"vip_{metadata['user_id']}_{int(__import__('time').time())}"}

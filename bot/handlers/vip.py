@@ -10,7 +10,6 @@ from bot.utils import ensure_vip_status
 from payments.yookassa import create_payment
 
 async def create_yookassa_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int, days: int, price: str):
-    # === ПРОВЕРКА ТАЙМЕРА ===
     last_payment = db.fetch_all("""
         SELECT created_at, status 
         FROM vip_payments 
@@ -30,7 +29,6 @@ async def create_yookassa_payment(update: Update, context: ContextTypes.DEFAULT_
                 )
                 return
 
-    # === ОПРЕДЕЛЕНИЕ ОПИСАНИЯ ===
     if days == 7:
         desc = "VIP на 7 дней"
     elif days == 14:
@@ -51,7 +49,7 @@ async def create_yookassa_payment(update: Update, context: ContextTypes.DEFAULT_
         return
 
     payload = {
-        "amount": {"value": price, "currency": "RUB"},  # ← price уже "49.00"
+        "amount": {"value": price, "currency": "RUB"},
         "confirmation": {"type": "redirect", "return_url": f"https://t.me/{context.bot.username}"},
         "capture": True,
         "description": desc,
@@ -74,7 +72,7 @@ async def create_yookassa_payment(update: Update, context: ContextTypes.DEFAULT_
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                "https://api.yookassa.ru/v3/payments",  # ← без пробелов!
+                "https://api.yookassa.ru/v3/payments",
                 json=payload,
                 auth=(YOO_KASSA_SHOP_ID, YOO_KASSA_SECRET_KEY),
                 headers={"Idempotence-Key": f"vip_{user_id}_{int(datetime.datetime.now().timestamp())}"}
@@ -159,7 +157,6 @@ async def handle_vip_plan_selection(update: Update, context: ContextTypes.DEFAUL
 
     price, duration, desc = plan_map[plan]
 
-    #Проверка таймера
     last_payment = db.fetch_all("""
         SELECT created_at, status 
         FROM vip_payments 
@@ -179,7 +176,6 @@ async def handle_vip_plan_selection(update: Update, context: ContextTypes.DEFAUL
                 )
                 return
 
-    #Получение контакта
     user = db.fetch_all("SELECT email, phone FROM users WHERE user_id = %s", (user_id,))
     customer = {}
     if user and user[0]['email']:
@@ -196,7 +192,6 @@ async def handle_vip_plan_selection(update: Update, context: ContextTypes.DEFAUL
         context.user_data['vip_price'] = price
         return
 
-    #Создание платежа
     from payments.yookassa import create_payment
     try:
         metadata = {"user_id": str(user_id), "days": str(duration)}
@@ -275,7 +270,6 @@ async def check_payment_status(update: Update, context: ContextTypes.DEFAULT_TYP
         print(f"❌ Ошибка при проверке платежа: {e}")
         await update.message.reply_text("❌ Ошибка при проверке платежа.")
 
-#Хендлеры
 buy_vip_handler = CommandHandler("buy_vip", buy_vip_stub)
 vip_plan_handler = CallbackQueryHandler(handle_vip_plan_selection, pattern=r'^vip_plan_')
 check_payment_handler = CommandHandler("check_payment", check_payment_status)

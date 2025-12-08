@@ -48,6 +48,5 @@ async def handle_broadcast_message(update: Update, context: ContextTypes.DEFAULT
         f"Неудачно: {fail}"
     )
 
-#Хендлеры
 broadcast_start_handler = CommandHandler("broadcast", broadcast_start)
 broadcast_message_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, handle_broadcast_message)

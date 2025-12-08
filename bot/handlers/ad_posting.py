@@ -23,7 +23,6 @@ async def handle_any_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     username = update.effective_user.username or "unknown"
     text = update.message.text.strip()
 
-    #Обработка email
     if context.user_data.get('awaiting_email'):
         if text == "-":
             await update.message.reply_text("📱 Укажите номер телефона в формате +79991234567:")
@@ -44,7 +43,6 @@ async def handle_any_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 context.user_data.pop(key, None)
         return
 
-    #Обработка телефона
     if context.user_data.get('awaiting_phone'):
         if not text.startswith("+") or len(text) < 10:
             await update.message.reply_text("📱 Неверный формат. Пример: +79991234567")
@@ -59,7 +57,6 @@ async def handle_any_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data.pop(key, None)
         return
 
-    #Обработка других состояний
     state = context.user_data.get('state')
     if state == 'awaiting_broadcast':
         return await handle_broadcast_message(update, context)
@@ -83,7 +80,6 @@ async def handle_any_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['awaiting_ad_text'] = True
         return
 
-    #Получение server_id на момент создания объявления
     user_info = db.fetch_all("SELECT server_id FROM users WHERE user_id = %s", (user_id,))
     user_server_id = user_info[0]['server_id'] if user_info and user_info[0]['server_id'] is not None else None
 
@@ -158,7 +154,6 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await notify_moderators_about_new_post(context, post_id, username)
     await update.message.reply_text("✅ Фотообъявление отправлено на модерацию!")
 
-#Хендлеры
 add_handler = CommandHandler("add", add_command)
 text_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, handle_any_text)
 photo_handler = MessageHandler(filters.PHOTO, handle_photo)

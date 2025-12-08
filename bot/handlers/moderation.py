@@ -170,7 +170,6 @@ async def handle_reject_reason(update: Update, context: ContextTypes.DEFAULT_TYP
     context.user_data.pop('state', None)
     context.user_data.pop('rejecting_post_id', None)
 
-#Хендлеры
 moderate_handler = CommandHandler("moderate", list_pending)
 approve_handler = CallbackQueryHandler(approve_callback, pattern=r'^approve_\d+$')
 reject_handler = CallbackQueryHandler(reject_entry_callback, pattern=r'^reject_\d+$')

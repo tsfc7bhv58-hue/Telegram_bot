@@ -128,7 +128,6 @@ async def unban_handle_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     context.user_data.pop('unban_step', None)
 
-#Хендлеры
 ban_start_handler = CommandHandler("ban", ban_start)
 ban_input_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, ban_handle_input)
 unban_start_handler = CommandHandler("unban", unban_start)

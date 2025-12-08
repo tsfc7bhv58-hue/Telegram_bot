@@ -10,7 +10,7 @@ from .fallback import unsupported_media_handler
 from .buttons import button_callback_handler
 
 def register_all_handlers(app: Application):
-    # Команды
+
     app.add_handler(start_handler)
     app.add_handler(add_handler)
     app.add_handler(moderate_handler)
@@ -21,20 +21,17 @@ def register_all_handlers(app: Application):
     app.add_handler(broadcast_start_handler)
     app.add_handler(CommandHandler("ref", referral_status))
 
-    # Callback-кнопки
     app.add_handler(server_selection_handler)
     app.add_handler(vip_plan_handler)
     app.add_handler(approve_handler)
     app.add_handler(reject_handler)
     app.add_handler(CallbackQueryHandler(button_callback_handler, pattern=r'^cmd_'))  # ← регистрируем здесь
 
-    # Состояния
     app.add_handler(broadcast_message_handler, group=1)
     app.add_handler(reject_reason_handler, group=2)
     app.add_handler(ban_input_handler, group=3)
     app.add_handler(unban_input_handler, group=4)
 
-    # Контент
     app.add_handler(text_handler)
     app.add_handler(photo_handler)
     app.add_handler(unsupported_media_handler)

@@ -180,6 +180,5 @@ async def referral_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.effective_message.reply_text(text, parse_mode="HTML")
 
-#Хендлеры
 start_handler = CommandHandler("start", start)
 server_selection_handler = CallbackQueryHandler(handle_server_selection, pattern=r"^(server_\d+|server_prev|server_next)$")
